@@ -1,0 +1,10 @@
+### User Registration with Basic Authentication
+POST http://localhost:8080/auth/register
+Content-Type: application/json
+Authorization: Basic am9obl9kb2U6c2VjdXJlUGFzc3dvcmQxMjM=
+
+{
+    "username": "john_doe",
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+}
