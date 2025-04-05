@@ -2,13 +2,21 @@ package com.dairy.milk_tracking.repositories;
 
 import com.dairy.milk_tracking.models.MilkCollection;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+@Repository
 public interface MilkCollectionRepository extends JpaRepository<MilkCollection, Long> {
-    
-    // Find all milk collections for a specific farmer
+
+    // All collections done by a specific farmer
     List<MilkCollection> findByFarmerId(Long farmerId);
 
-    // Find all milk collections for a collection point
+    // All collections done by a specific collector
+    List<MilkCollection> findByCollectorId(Long collectorId);
+
+    // All collections processed by a specific processor
+    List<MilkCollection> findByProcessorId(Long processorId);
+
+    // All collections made at a specific collection point
     List<MilkCollection> findByCollectionPointId(Long collectionPointId);
 }

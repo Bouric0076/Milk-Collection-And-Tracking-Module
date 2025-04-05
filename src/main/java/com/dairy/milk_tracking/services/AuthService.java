@@ -1,55 +1,86 @@
 package com.dairy.milk_tracking.services;
+
 import com.dairy.milk_tracking.models.Role;
 import com.dairy.milk_tracking.models.User;
-import com.dairy.milk_tracking.repositories.RoleRepository;
 import com.dairy.milk_tracking.repositories.UserRepository;
-import com.dairy.milk_tracking.security.JwtUtil;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import java.util.HashSet;
-import java.util.Set;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AuthService {
 
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    @Autowired
+    private UserRepository userRepository;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtUtil = jwtUtil;
-    }
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
-    public String registerUser(String username, String password, String roleName) {
-        if (userRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already taken");
+    @Value("${jwt.secret}") // JWT secret key from properties
+    private String jwtSecret;
+
+    // Register a new user
+    public User registerUser(String username, String email, String password, Role role, String phoneNumber) {
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("Email already in use");
         }
 
-        Role role = roleRepository.findByName(roleName).orElseThrow(() -> new RuntimeException("Role not found"));
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Username already in use");
+        }
+
         User user = new User();
         user.setUsername(username);
-        user.setPassword(passwordEncoder.encode(password));
+        user.setEmail(email);
+        user.setPassword(password); // Assuming password is already encoded
+        user.setRole(role);
+        user.setPhoneNumber(phoneNumber);
 
-        Set<Role> roles = new HashSet<>();
-        roles.add(role);
-        user.setRoles(roles);
-
-        userRepository.save(user);
-        return jwtUtil.generateToken(username);
+        return userRepository.save(user);
     }
 
-    public String authenticateUser(String username, String password) {
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
+    // Login user and generate JWT token
+    public String login(String email, String password) {
+        // Authenticate the user credentials using AuthenticationManager
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, password)
+        );
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
+        // If authentication is successful, generate JWT token
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-        return jwtUtil.generateToken(username);
+        // Generate JWT token (you can customize the claims as needed)
+        return generateToken(userDetails.getUsername(), userDetails.getAuthorities().toString());
+    }
+
+    // Generate JWT token
+    private String generateToken(String username, String authorities) {
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("roles", authorities)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // Token valid for 1 day
+                .signWith(SignatureAlgorithm.HS256, jwtSecret)
+                .compact();
+    }
+
+    // Find user by email
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    // Get users by role
+    public List<User> getUsersByRole(Role role) {
+        return userRepository.findByRole(role);
     }
 }
-

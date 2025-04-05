@@ -3,9 +3,11 @@ package com.dairy.milk_tracking.controllers;
 import com.dairy.milk_tracking.models.CollectionRequest;
 import com.dairy.milk_tracking.models.MilkCollection;
 import com.dairy.milk_tracking.services.CollectionService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/collections")
@@ -17,19 +19,32 @@ public class CollectionController {
         this.collectionService = collectionService;
     }
 
+    // 1. Farmer submits a collection request
     @PostMapping("/request")
-    public CollectionRequest requestCollection(@RequestBody CollectionRequest request) {
-        return collectionService.requestCollection(request);
+    public ResponseEntity<CollectionRequest> requestCollection(@RequestBody CollectionRequest request) {
+        CollectionRequest savedRequest = collectionService.requestCollection(request);
+        return ResponseEntity.ok(savedRequest);
     }
 
+    // 2. View all pending collection requests (e.g. by Collectors)
     @GetMapping("/pending")
-    public List<CollectionRequest> getPendingRequests() {
-        return collectionService.getPendingRequests();
+    public ResponseEntity<List<CollectionRequest>> getPendingRequests() {
+        return ResponseEntity.ok(collectionService.getPendingRequests());
     }
 
+    // 3. Approve a pending request
     @PostMapping("/approve/{id}")
-    public MilkCollection approveCollection(@PathVariable Long id, @RequestParam double collectedAmount) {
-        CollectionRequest request = collectionService.requestCollection(new CollectionRequest()); // Fetch request from DB
-        return collectionService.approveRequest(request, collectedAmount);
+    public ResponseEntity<MilkCollection> approveCollection(
+            @PathVariable Long id,
+            @RequestParam double collectedAmount
+    ) {
+        Optional<CollectionRequest> optionalRequest = collectionService.getCollectionRequestById(id);
+        if (optionalRequest.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        CollectionRequest request = optionalRequest.get();
+        MilkCollection milkCollection = collectionService.approveRequest(request, collectedAmount, null);
+        return ResponseEntity.ok(milkCollection);
     }
 }
