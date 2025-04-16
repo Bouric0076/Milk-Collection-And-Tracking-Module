@@ -4,14 +4,18 @@ import com.dairy.milk_tracking.models.Role;
 import com.dairy.milk_tracking.models.User;
 import com.dairy.milk_tracking.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:8081", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST})
+@CrossOrigin(origins = "http://localhost:8081", allowedHeaders = "*", methods = { RequestMethod.GET,
+        RequestMethod.POST })
 @RequestMapping("/auth")
 public class AuthController {
 
@@ -22,32 +26,38 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<User> registerUser(@RequestBody UserRegistrationRequest request) {
         User newUser = authService.registerUser(
-            request.getUsername(),
-            request.getEmail(),
-            request.getPassword(),
-            request.getRole(),
-            request.getPhoneNumber()
-        );
-        return ResponseEntity.ok(newUser);
+                request.getUsername(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getRole(),
+                request.getPhoneNumber());
+        return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
     }
 
     // Login and generate JWT token
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-        // Login and generate JWT token in the AuthService
+    public ResponseEntity<Map<String, Object>> login(@RequestBody AuthRequest request) {
         String jwtToken = authService.login(request.getEmail(), request.getPassword());
 
         if (jwtToken == null) {
-            return ResponseEntity.status(401).body("Invalid email or password");
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid email or password");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
 
         // Find user by email
-        User user = authService.findByEmail(request.getEmail()).orElseThrow();
+        User user = authService.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found")); // Change this error if necessary
 
-        // Return response with token and user details
-        return ResponseEntity.ok()
-                .header("Authorization", "Bearer " + jwtToken)
-                .body("Email: " + user.getEmail() + ", Role: " + user.getRole());
+        // Successful login
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("token", jwtToken);
+        responseBody.put("email", user.getEmail());
+        responseBody.put("role", user.getRole());
+        responseBody.put("id", user.getId());
+        responseBody.put("username", user.getUsername());
+        responseBody.put("phoneNumber", user.getPhoneNumber());
+        return ResponseEntity.ok(responseBody);
     }
 
     // Get user by email
@@ -69,8 +79,13 @@ class AuthRequest {
     private String email;
     private String password;
 
-    public String getEmail() { return email; }
-    public String getPassword() { return password; }
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
 }
 
 // User Registration Request DTO
@@ -81,9 +96,23 @@ class UserRegistrationRequest {
     private Role role;
     private String phoneNumber;
 
-    public String getUsername() { return username; }
-    public String getEmail() { return email; }
-    public String getPassword() { return password; }
-    public Role getRole() { return role; }
-    public String getPhoneNumber() { return phoneNumber; }
+    public String getUsername() {
+        return username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
 }

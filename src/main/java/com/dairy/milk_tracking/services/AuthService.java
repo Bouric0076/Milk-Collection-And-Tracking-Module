@@ -7,27 +7,36 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 @Service
-public class AuthService {
+public class AuthService implements UserDetailsService {
 
     @Autowired
     private UserRepository userRepository;
 
+    @Lazy
     @Autowired
     private AuthenticationManager authenticationManager;
 
-    @Value("${jwt.secret}") // JWT secret key from properties
+    @Value("${jwt.secret}")
     private String jwtSecret;
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // Register a new user
     public User registerUser(String username, String email, String password, Role role, String phoneNumber) {
@@ -42,7 +51,7 @@ public class AuthService {
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
-        user.setPassword(password); // Assuming password is already encoded
+        user.setPassword(passwordEncoder.encode(password)); // Hash password before saving
         user.setRole(role);
         user.setPhoneNumber(phoneNumber);
 
@@ -51,23 +60,27 @@ public class AuthService {
 
     // Login user and generate JWT token
     public String login(String email, String password) {
-        // Authenticate the user credentials using AuthenticationManager
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password));
 
-        // If authentication is successful, generate JWT token
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-        // Generate JWT token (you can customize the claims as needed)
-        return generateToken(userDetails.getUsername(), userDetails.getAuthorities().toString());
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            return generateToken(userDetails.getUsername(), userDetails.getAuthorities());
+        } catch (Exception e) {
+            throw new RuntimeException("Authentication failed: " + e.getMessage());
+        }
     }
 
-    // Generate JWT token
-    private String generateToken(String username, String authorities) {
+    // Generate JWT token with improved role claim
+    private String generateToken(String username, Collection<?> authorities) {
+        List<String> roles = authorities.stream()
+                .map(Object::toString)
+                .collect(Collectors.toList());
+
         return Jwts.builder()
+                .setHeaderParam("typ", "JWT") // Add 'typ' field in header
                 .setSubject(username)
-                .claim("roles", authorities)
+                .claim("roles", roles) // Cleaner JSON array of roles
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // Token valid for 1 day
                 .signWith(SignatureAlgorithm.HS256, jwtSecret)
@@ -82,5 +95,24 @@ public class AuthService {
     // Get users by role
     public List<User> getUsersByRole(Role role) {
         return userRepository.findByRole(role);
+    }
+
+    // Implement the loadUserByUsername method from UserDetailsService
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
+
+        String roleWithPrefix = "ROLE_" + user.getRole().toString();
+
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .authorities(roleWithPrefix)
+                .accountExpired(false)
+                .accountLocked(false)
+                .credentialsExpired(false)
+                .disabled(false)
+                .build();
     }
 }
