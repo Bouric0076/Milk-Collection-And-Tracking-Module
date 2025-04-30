@@ -10,6 +10,7 @@ import com.dairy.milk_tracking.dto.CollectionPointDTO;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -34,11 +35,7 @@ public class CollectionPoint {
     private List<MilkCollection> milkCollections;
 
     @OneToMany(mappedBy = "collectionPoint", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference(value = "point-requests") // Add this line
     private List<CollectionRequest> collectionRequests;
-
-    public Collection<CollectionPointDTO> getFarmers() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFarmers'");
-    }
 
 }

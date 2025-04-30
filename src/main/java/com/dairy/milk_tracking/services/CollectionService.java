@@ -18,7 +18,7 @@ public class CollectionService {
     private final MilkCollectionRepository milkCollectionRepository;
 
     public CollectionService(CollectionRequestRepository collectionRequestRepository,
-                             MilkCollectionRepository milkCollectionRepository) {
+            MilkCollectionRepository milkCollectionRepository) {
         this.collectionRequestRepository = collectionRequestRepository;
         this.milkCollectionRepository = milkCollectionRepository;
     }
@@ -56,8 +56,37 @@ public class CollectionService {
         return collectionRequestRepository.save(request);
     }
 
+    public List<MilkCollection> getCollectionsByFarmerId(Long farmerId) {
+        return milkCollectionRepository.findByFarmerId(farmerId);
+    }
+
+    public List<CollectionRequest> getRequestsByFarmerId(Long farmerId) {
+        return collectionRequestRepository.findByFarmerId(farmerId);
+    }
+
     public Optional<CollectionRequest> getCollectionRequestById(Long id) {
         return collectionRequestRepository.findById(id);
     }
-    
+
+    public List<CollectionRequest> findAllRequestsByFarmerId(Long farmerId) {
+        return collectionRequestRepository.findByFarmerId(farmerId);
+    }
+
+    public CollectionRequest save(CollectionRequest request) {
+        return collectionRequestRepository.save(request);
+    }
+
+    public List<MilkCollection> getAllCollections() {
+        return milkCollectionRepository.findAll();
+    }
+
+    // In CollectionService.java
+    public List<MilkCollection> getAllMilkCollections() {
+        return milkCollectionRepository.findAll();
+    }
+
+    public Optional<MilkCollection> getCollectionById(Long id) {
+        return milkCollectionRepository.findById(id);
+    }
+
 }

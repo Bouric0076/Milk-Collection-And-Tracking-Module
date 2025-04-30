@@ -14,8 +14,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:8081", allowedHeaders = "*", methods = { RequestMethod.GET,
-        RequestMethod.POST })
+@CrossOrigin(origins = { "http://localhost:8081",
+        "exp://10.5.17.11:8081" }, allowedHeaders = "*", methods = { RequestMethod.GET,
+                RequestMethod.POST })
 @RequestMapping("/auth")
 public class AuthController {
 
